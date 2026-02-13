@@ -6,13 +6,13 @@ import { sha256 } from "@/lib/hash";
 import { InvoiceStatus } from "@/domain/invoices/invoice-status";
 import type { MakeCallbackInput } from "./make-callback.schema";
 
-function computeBusinessKey(input: {
+const computeBusinessKey = (input: {
   supplierName: string;
   invoiceNumber: string;
   invoiceDate: string; // YYYY-MM-DD
   amountTTC: number;
   currency: string;
-}) {
+}) => {
   const normalized = [
     input.supplierName.trim().toLowerCase(),
     input.invoiceNumber.trim().toLowerCase(),
@@ -22,7 +22,7 @@ function computeBusinessKey(input: {
   ].join("|");
 
   return sha256(Buffer.from(normalized));
-}
+};
 
 const toPgNumeric = (value: number | null | undefined): string | null => {
   if (value === null || value === undefined) return null;
@@ -30,9 +30,9 @@ const toPgNumeric = (value: number | null | undefined): string | null => {
   return value.toFixed(2);
 };
 
-export async function processMakeCallback(
+export const processMakeCallback = async (
   input: MakeCallbackInput,
-): Promise<boolean> {
+): Promise<boolean> => {
   const [row] = await db
     .select({ id: invoices.id })
     .from(invoices)
@@ -41,6 +41,8 @@ export async function processMakeCallback(
 
   if (!row) return false;
 
+  const extracted = input.extracted;
+
   if (input.status === "ERROR") {
     await db
       .update(invoices)
@@ -48,7 +50,7 @@ export async function processMakeCallback(
         status: InvoiceStatus.ERROR,
         errorMessage: input.errorMessage ?? "Unknown Make error",
         rawExtraction: {
-          extracted: input.extracted ?? null,
+          extracted: extracted ?? null,
           rawText: input.rawText ?? null,
         },
       })
@@ -57,25 +59,23 @@ export async function processMakeCallback(
     return true;
   }
 
-  const extracted = input.extracted;
-
   let businessKey: string | null = null;
   let isDuplicate = false;
 
-  if (
-    extracted &&
-    extracted.supplierName &&
-    extracted.invoiceNumber &&
-    extracted.invoiceDate &&
-    extracted.amountTTC != null &&
-    extracted.currency
-  ) {
+  const hasBusinessFields =
+    !!extracted?.supplierName &&
+    !!extracted?.invoiceNumber &&
+    !!extracted?.invoiceDate &&
+    extracted?.amountTTC != null &&
+    !!extracted?.currency;
+
+  if (hasBusinessFields) {
     businessKey = computeBusinessKey({
-      supplierName: extracted.supplierName,
-      invoiceNumber: extracted.invoiceNumber,
-      invoiceDate: extracted.invoiceDate,
-      amountTTC: extracted.amountTTC,
-      currency: extracted.currency,
+      supplierName: extracted!.supplierName!,
+      invoiceNumber: extracted!.invoiceNumber!,
+      invoiceDate: extracted!.invoiceDate!,
+      amountTTC: extracted!.amountTTC!,
+      currency: extracted!.currency!,
     });
 
     const [existing] = await db
@@ -104,9 +104,9 @@ export async function processMakeCallback(
       invoiceNumber: extracted?.invoiceNumber ?? null,
       invoiceDate: extracted?.invoiceDate ?? null,
 
-      amountHT: toPgNumeric(extracted?.amountHT ?? null),
-      amountTVA: toPgNumeric(extracted?.amountTVA ?? null),
-      amountTTC: toPgNumeric(extracted?.amountTTC ?? null),
+      amountHT: toPgNumeric(extracted?.amountHT),
+      amountTVA: toPgNumeric(extracted?.amountTVA),
+      amountTTC: toPgNumeric(extracted?.amountTTC),
 
       currency: extracted?.currency ?? "EUR",
 
@@ -122,4 +122,4 @@ export async function processMakeCallback(
     .where(eq(invoices.id, input.invoiceId));
 
   return true;
-}
+};

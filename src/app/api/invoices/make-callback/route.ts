@@ -6,18 +6,16 @@ import { ErrorCode } from "@/domain/errors/app-errors";
 import { makeCallbackSchema } from "@/application/invoices/make-callback/make-callback.schema";
 import { processMakeCallback } from "@/application/invoices/make-callback/process-make-callback";
 
-export async function POST(req: Request) {
-  const expectedSecret = process.env.MAKE_CALLBACK_SECRET;
-  if (!expectedSecret) {
-    return jsonError(
-      500,
-      ErrorCode.INTERNAL_ERROR,
-      "Server is not configured.",
-    );
-  }
+const validateMakeSecret = (req: Request): boolean => {
+  const expected = process.env.MAKE_CALLBACK_SECRET;
+  if (!expected) return false;
 
-  const providedSecret = req.headers.get("x-make-secret");
-  if (providedSecret !== expectedSecret) {
+  const provided = req.headers.get("x-make-secret");
+  return provided === expected;
+};
+
+export async function POST(req: Request) {
+  if (!validateMakeSecret(req)) {
     return jsonError(401, ErrorCode.MAKE_CALLBACK_INVALID, "Unauthorized.");
   }
 

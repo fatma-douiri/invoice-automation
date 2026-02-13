@@ -16,11 +16,11 @@ export type AppErrorResponse = {
   };
 };
 
-export function makeErrorResponse(
+export const makeErrorResponse = (
   code: ErrorCode,
   message: string,
   details?: Record<string, unknown>,
-): AppErrorResponse {
+): AppErrorResponse => {
   return {
     error: {
       code,
@@ -28,4 +28,4 @@ export function makeErrorResponse(
       ...(details ? { details } : {}),
     },
   };
-}
+};

@@ -13,7 +13,7 @@ const CreateInvoiceFromUploadKind = {
 
 type InvoiceRow = InferSelectModel<typeof invoices>;
 
-export type CreateInvoiceFromUploadResult =
+type CreateInvoiceFromUploadResult =
   | {
       kind: typeof CreateInvoiceFromUploadKind.DUPLICATE_FILE;
       fileHash: string;
@@ -24,19 +24,19 @@ export type CreateInvoiceFromUploadResult =
       invoice: InvoiceRow;
     };
 
-function isPostgresUniqueViolation(err: unknown): boolean {
+const isPostgresUniqueViolation = (err: unknown): boolean => {
   return (
     typeof err === "object" &&
     err !== null &&
     "code" in err &&
     (err as { code?: unknown }).code === "23505"
   );
-}
+};
 
-export async function createInvoiceFromUpload(params: {
+export const createInvoiceFromUpload = async (params: {
   fileName: string;
   buffer: Buffer;
-}): Promise<CreateInvoiceFromUploadResult> {
+}): Promise<CreateInvoiceFromUploadResult> => {
   const fileHash = sha256(params.buffer);
 
   // Fast path: if already present, return DUPLICATE_FILE
@@ -122,14 +122,14 @@ export async function createInvoiceFromUpload(params: {
 
     throw err;
   }
-}
+};
 
-async function postInvoiceToMakeWebhook(params: {
+const postInvoiceToMakeWebhook = async (params: {
   invoiceId: string;
   fileName: string;
   fileHash: string;
   buffer: Buffer;
-}) {
+}) => {
   const url = process.env.MAKE_WEBHOOK_URL;
   if (!url) {
     throw new Error("MAKE_WEBHOOK_URL is not set");
@@ -155,4 +155,4 @@ async function postInvoiceToMakeWebhook(params: {
       `Make webhook failed (${res.status}): ${text || res.statusText}`,
     );
   }
-}
+};
