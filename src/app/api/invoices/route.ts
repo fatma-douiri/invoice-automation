@@ -46,7 +46,7 @@ export async function POST(req: Request) {
       );
     }
 
-    return NextResponse.json({ invoice: result.invoice }, { status: 201 });
+    return NextResponse.json({ data: result.invoice }, { status: 201 });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
     return jsonError(500, ErrorCode.INTERNAL_ERROR, "Internal server error.", {
@@ -56,11 +56,18 @@ export async function POST(req: Request) {
 }
 
 export async function GET() {
-  const rows = await db
-    .select()
-    .from(invoices)
-    .orderBy(desc(invoices.createdAt))
-    .limit(20);
+  try {
+    const rows = await db
+      .select()
+      .from(invoices)
+      .orderBy(desc(invoices.createdAt))
+      .limit(20);
 
-  return NextResponse.json({ invoices: rows }, { status: 200 });
+    return NextResponse.json({ data: rows }, { status: 200 });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    return jsonError(500, ErrorCode.INTERNAL_ERROR, "Failed to fetch invoices.", {
+      reason: message,
+    });
+  }
 }
